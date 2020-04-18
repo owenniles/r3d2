@@ -1,6 +1,6 @@
-/* main.c
+/* defs.h
 
-   Control motors, servo, distance sensors, and LEDs inside an R2D2 robot.
+   Useful, program-wide declarations.
 
    Copyright 2020 Owen Niles <oniles@college.harvard.edu>
 
@@ -19,31 +19,13 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>. */
 
-#include "driver/mcpwm.h"
-#include "esp_err.h"
-#include "esp_timer.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#ifndef _DEFS_H_
+#define _DEFS_H_
 
-#include "defs.h"
+#include "driver/gpio.h"
 
-static void
-r3d2_pwm_init (void)
-{
-  mcpwm_config_t servo;
+#define SERVO_CTL_PIN GPIO_NUM_23
+#define SERVO_DUTY_MIN 960
+#define SERVO_DUTY_MAX 2140
 
-  servo.frequency = 50;
-  servo.cmpr_a = 0;
-  servo.cmpr_b = 0;
-  servo.duty_mode = MCPWM_DUTY_MODE_0;
-  servo.counter_mode = MCPWM_UP_COUNTER;
-
-  ESP_ERROR_CHECK (mcpwm_gpio_init (MCPWM_UNIT_0, MCPWM1A, SERVO_CTL_PIN));
-  ESP_ERROR_CHECK (mcpwm_init (MCPWM_UNIT_0, MCPWM_TIMER_1, &servo));
-}
-
-void
-app_main (void)
-{
-  r3d2_pwm_init ();
-}
+#endif /* not _DEFS_H_ */
