@@ -19,6 +19,8 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>. */
 
+#include <limits.h>
+
 #include "driver/gpio.h"
 #include "driver/mcpwm.h"
 #include "esp_err.h"
@@ -27,6 +29,50 @@
 #include "freertos/task.h"
 
 #include "defs.h"
+
+enum measure_flag {
+		   M_DIST0 = 0b1, /* Measure distance using sensor 0 */
+		   M_DIST1 = 0b10 /* Measure distance using sensor 1 */
+};
+
+enum turn_flag { T_NOHEAD = 0b1 };
+
+/* The direction in which R3D2's head is turned. */
+static unsigned head_pos;
+
+static int dist[7];
+static char stale = CHAR_MAX;
+
+/* Causes R3D2 to place his head in one of four positions. */
+static void
+look (unsigned pos)
+{
+  static const int step = (SERVO_DUTY_MAX - SERVO_DUTY_MIN) / 3;
+  int duty = SERVO_DUTY_MIN + step * (pos > 3 ? 3 : pos);
+
+  ESP_ERROR_CHECK (mcpwm_set_duty_in_us (MCPWM_UNIT_1, MCPWM_TIMER_0,
+					 MCPWM_GEN_A, duty));
+  vTaskDelay (500 / portTICK_PERIOD_MS);
+  head_pos = pos;
+}
+
+/* Measures the distance to the closest object. */
+static int
+measure (int flags)
+{
+  return 0;
+}
+
+static void
+move (int dist)
+{
+}
+
+/* Causes R3D2 to turn his entire body either left or right */
+static void
+turn (int direction, int flags)
+{
+}
 
 static void
 pwm_init (void)
@@ -42,8 +88,7 @@ pwm_init (void)
   ESP_ERROR_CHECK (mcpwm_init (MCPWM_UNIT_0, MCPWM_TIMER_0, &pulse));
   ESP_ERROR_CHECK (mcpwm_init (MCPWM_UNIT_1, MCPWM_TIMER_0, &pulse));
 
-  ESP_ERROR_CHECK (mcpwm_set_duty_in_us (MCPWM_UNIT_1, MCPWM_TIMER_0,
-					 MCPWM_GEN_A, SERVO_DUTY_MIN));
+  look (0);
 }
 
 static void
