@@ -30,23 +30,21 @@
 #include "r3d2.h"
 
 int64_t echo[2][2];
+int waiting;
 
 /* Save the start and end times of the pulse that we receive from the distance
    sensor so that we can calculate the width of the pulse. */
 void
-distance_isr (int64_t *pulse)
+distance_isr (void *arg)
 {
-#define __START 0
-#define __END 1
-  int edge = pulse[__START] > pulse[__END];
+  int64_t *pulse = (int64_t *) arg;
+  int edge = pulse[0] > pulse[1];
   
   pulse[edge] = esp_timer_get_time ();
-#undef __START
-#undef __END
 }
 
 int64_t
-get_distance (unsigned sensor)
+getdist (unsigned sensor)
 {
   int dist;
   
@@ -55,8 +53,7 @@ get_distance (unsigned sensor)
 
   dist = (echo[sensor][1] - echo[sensor][0]) / 58;
   memset (echo[sensor], 0, sizeof echo[sensor]);
-  
-  return dist;
+  return dist >= 0 ? dist : -1;
 }
 
 void

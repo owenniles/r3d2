@@ -26,7 +26,8 @@
 
 #include "driver/gpio.h"
 
-enum turn_flags { T_NOHEAD = 0b1 };
+enum direction { FORWARD = 1, BACKWARD = -1 };
+enum turn_flags { LOCK_HEAD = 0b1 };
 
 /* Stores the start and end times in microseconds since boot of the last pulse
    received on each distance sensor. */
@@ -66,13 +67,14 @@ extern int64_t echo[2][2];
 #define HALL1_MASK
 
 /* Object detection interface. */
-void distance_isr (int64_t *arg);
-int64_t get_distance (unsigned);
+void distance_isr (void *);
+int64_t getdist (unsigned);
 void measure (void);
 
 /* Movement interface. */
 void look (unsigned);
 void move (int);
+void stop (void);
 void turn (int, uint8_t);
 
 #endif /* not _DEFS_H_ */

@@ -29,9 +29,9 @@
 
 /* The relative direction in which R3D2's head is facing. */
 static unsigned head_pos;
+static int moving;
 
 static void start (void);
-static void stop (void);
 
 /* Causes R3D2 to place his head in one of four positions. */
 void
@@ -51,25 +51,30 @@ look (unsigned pos)
    sensors to the microcontroller yet, so this function is not implemented as
    specified, yet. */
 void
-move (int dist)
+move (int direction)
 {
-  int l1 = dist > 0;
-  int l2 = dist < 0;
+  int in1, in2;
   
-  ESP_ERROR_CHECK (gpio_set_level (DRIVER_A1_PIN, l1));
-  ESP_ERROR_CHECK (gpio_set_level (DRIVER_A2_PIN, l2));
-  ESP_ERROR_CHECK (gpio_set_level (DRIVER_B1_PIN, l1));
-  ESP_ERROR_CHECK (gpio_set_level (DRIVER_B2_PIN, l2));
+  if (moving)
+    return;
+
+  in1 = direction > 0;
+  in2 = direction < 0;
+  
+  ESP_ERROR_CHECK (gpio_set_level (DRIVER_A1_PIN, in1));
+  ESP_ERROR_CHECK (gpio_set_level (DRIVER_A2_PIN, in2));
+  ESP_ERROR_CHECK (gpio_set_level (DRIVER_B1_PIN, in1));
+  ESP_ERROR_CHECK (gpio_set_level (DRIVER_B2_PIN, in2));
   
   start ();
-  vTaskDelay (2000 / portTICK_PERIOD_MS);
-  stop ();
 }
 
 /* Gently accelerate to normal movement speed. */
 static void
 start (void)
 {
+  moving = 1;
+
   for (int i = 20; i <= 50; i += 3)
     {
       ESP_ERROR_CHECK (mcpwm_set_duty (MCPWM_UNIT_0, MCPWM_TIMER_0,
@@ -78,17 +83,21 @@ start (void)
 				       MCPWM_GEN_B, i));
       vTaskDelay (100 / portTICK_PERIOD_MS);
     }
-  printf ("Started\n");
 }
 
 /* Gently stop moving. */
-static void
+void
 stop (void)
 {
-  float duty_a = mcpwm_get_duty (MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_A);
-  float duty_b = mcpwm_get_duty (MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_B);
-  float step_a = (duty_a - 20) / 10;
-  float step_b = (duty_b - 20) / 10;
+  float duty_a, duty_b, step_a, step_b;
+
+  if (!moving)
+    return;
+
+  duty_a = mcpwm_get_duty (MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_A);
+  duty_b = mcpwm_get_duty (MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_B);
+  step_a = (duty_a - 20) / 10;
+  step_b = (duty_b - 20) / 10;
 
   for (int i = 1; i <= 10; ++i)
     {
@@ -110,10 +119,23 @@ stop (void)
   ESP_ERROR_CHECK (gpio_set_level (DRIVER_B2_PIN, 0));
 
   vTaskDelay (500 / portTICK_PERIOD_MS);
+
+  moving = 0;
 }
 
 /* Causes R3D2 to turn his entire body either left or right */
 void
 turn (int direction, uint8_t flags)
 {
+  int in1 = direction > 0;
+  int in2 = direction < 0;
+
+  ESP_ERROR_CHECK (gpio_set_level (DRIVER_A1_PIN, in1));
+  ESP_ERROR_CHECK (gpio_set_level (DRIVER_A2_PIN, in2));
+  ESP_ERROR_CHECK (gpio_set_level (DRIVER_B1_PIN, in2));
+  ESP_ERROR_CHECK (gpio_set_level (DRIVER_B2_PIN, in1));
+
+  start ();
+  vTaskDelay (100 / portTICK_PERIOD_MS);
+  stop ();
 }

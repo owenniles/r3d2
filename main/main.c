@@ -28,6 +28,8 @@
 
 #include "r3d2.h"
 
+static int waiting;
+
 static void pwm_init (void);
 
 static void
@@ -88,8 +90,19 @@ pwm_init (void)
   look (0);
 }
 
+static void
+warmup (void)
+{
+  for (int i = 0; i < 10; ++i)
+    {
+      measure ();
+      vTaskDelay (10 / portTICK_PERIOD_MS);
+    }
+}
+
 void
 app_main (void)
 {
   io_init ();
+  warmup ();
 }
