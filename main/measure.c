@@ -29,6 +29,8 @@
 
 #include "r3d2.h"
 
+/* Stores the start and end times in microseconds since boot of the last pulse
+   received on each distance sensor. */
 int64_t echo[2][2];
 int waiting;
 

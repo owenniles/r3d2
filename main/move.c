@@ -27,23 +27,36 @@
 
 #include "r3d2.h"
 
+unsigned long long hall[2];
+
 /* The relative direction in which R3D2's head is facing. */
-static unsigned head_pos;
+int head_pos;
+
 static int moving;
 
 static void start (void);
 
+void hall_isr (void *arg)
+{
+  ++*((unsigned long long *) arg);
+}
+
 /* Causes R3D2 to place his head in one of four positions. */
 void
-look (unsigned pos)
+look (int pos)
 {
+  int constrained = pos < 0 ? 0 : (pos > 3 ? 3 : pos);
+
+  if (head_pos == constrained)
+    return;
+  
   static const int step = (SERVO_DUTY_MAX - SERVO_DUTY_MIN) / 3;
-  int duty = SERVO_DUTY_MIN + step * (pos > 3 ? 3 : pos);
+  int duty = SERVO_DUTY_MIN + step * (constrained > 3 ? 3 : constrained);
 
   ESP_ERROR_CHECK (mcpwm_set_duty_in_us (MCPWM_UNIT_1, MCPWM_TIMER_0,
 					 MCPWM_GEN_A, duty));
   vTaskDelay (500 / portTICK_PERIOD_MS);
-  head_pos = pos;
+  head_pos = constrained;
 }
 
 /* Makes the move the specified number, which can be negative, of centimeters
@@ -75,7 +88,7 @@ start (void)
 {
   moving = 1;
 
-  for (int i = 20; i <= 50; i += 3)
+  for (int i = 30; i <= 50; i += 2)
     {
       ESP_ERROR_CHECK (mcpwm_set_duty (MCPWM_UNIT_0, MCPWM_TIMER_0,
 				       MCPWM_GEN_A, i));
@@ -85,7 +98,7 @@ start (void)
     }
 }
 
-/* Gently stop moving. */
+/* Gently reduce movement speed. */
 void
 stop (void)
 {
@@ -96,8 +109,8 @@ stop (void)
 
   duty_a = mcpwm_get_duty (MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_A);
   duty_b = mcpwm_get_duty (MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_B);
-  step_a = (duty_a - 20) / 10;
-  step_b = (duty_b - 20) / 10;
+  step_a = (duty_a - 30) / 10;
+  step_b = (duty_b - 30) / 10;
 
   for (int i = 1; i <= 10; ++i)
     {
@@ -119,7 +132,6 @@ stop (void)
   ESP_ERROR_CHECK (gpio_set_level (DRIVER_B2_PIN, 0));
 
   vTaskDelay (500 / portTICK_PERIOD_MS);
-
   moving = 0;
 }
 
@@ -134,8 +146,10 @@ turn (int direction, uint8_t flags)
   ESP_ERROR_CHECK (gpio_set_level (DRIVER_A2_PIN, in2));
   ESP_ERROR_CHECK (gpio_set_level (DRIVER_B1_PIN, in2));
   ESP_ERROR_CHECK (gpio_set_level (DRIVER_B2_PIN, in1));
-
   start ();
-  vTaskDelay (100 / portTICK_PERIOD_MS);
+
+  if ((flags & LOCK_HEAD) == 0)
+    look (straighten (head_pos));
+  
   stop ();
 }

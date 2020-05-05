@@ -28,8 +28,6 @@
 
 #include "r3d2.h"
 
-static int waiting;
-
 static void pwm_init (void);
 
 static void
@@ -37,15 +35,16 @@ io_init (void)
 {
   gpio_config_t in, out;
   
-  in.pin_bit_mask = DIST0_ECHO_MASK | DIST1_ECHO_MASK;
+  in.pin_bit_mask = (DIST0_ECHO_MASK | DIST1_ECHO_MASK | HALL0_MASK
+		     | HALL1_MASK);
   in.mode = GPIO_MODE_INPUT;
   in.pull_up_en = GPIO_PULLUP_DISABLE;
   in.pull_down_en = GPIO_PULLDOWN_ENABLE;
   in.intr_type = GPIO_INTR_ANYEDGE;
 
-  out.pin_bit_mask = (DIST0_TRIG_MASK | DIST1_TRIG_MASK | DRIVER_VCC_MASK
-		      | DRIVER_A1_MASK | DRIVER_A2_MASK | DRIVER_B1_MASK
-		      | DRIVER_B2_MASK);
+  out.pin_bit_mask = (PP3V3_V0_MASK | PP3V3_V1_MASK | DIST0_TRIG_MASK
+		      | DIST1_TRIG_MASK | DRIVER_A1_MASK | DRIVER_A2_MASK
+		      | DRIVER_B1_MASK | DRIVER_B2_MASK);
   out.mode = GPIO_MODE_OUTPUT;
   out.pull_up_en = GPIO_PULLUP_DISABLE;
   out.pull_down_en = GPIO_PULLDOWN_ENABLE;
@@ -61,6 +60,8 @@ io_init (void)
 					 echo[0]));
   ESP_ERROR_CHECK (gpio_isr_handler_add (DIST1_ECHO_PIN, distance_isr,
 					 echo[1]));
+  ESP_ERROR_CHECK (gpio_isr_handler_add (HALL0_PIN, hall_isr, hall));
+  ESP_ERROR_CHECK (gpio_isr_handler_add (HALL1_PIN, hall_isr, hall + 1));
 
   /* Select PWM pins. */
   ESP_ERROR_CHECK (mcpwm_gpio_init (MCPWM_UNIT_0, MCPWM0A, DRIVER_PWMA_PIN));
@@ -84,10 +85,52 @@ pwm_init (void)
   ESP_ERROR_CHECK (mcpwm_init (MCPWM_UNIT_0, MCPWM_TIMER_0, &pulse));
   ESP_ERROR_CHECK (mcpwm_init (MCPWM_UNIT_1, MCPWM_TIMER_0, &pulse));
 
-  /* Wake the motor driver from standby mode. */
-  ESP_ERROR_CHECK (gpio_set_level (DRIVER_VCC_PIN, 1));
+  /* Wake the motor driver from standby mode and supply power to the Hall
+     sensors. */
+  ESP_ERROR_CHECK (gpio_set_level (PP3V3_V0_PIN, 1));
+  ESP_ERROR_CHECK (gpio_set_level (PP3V3_V1_PIN, 1));
   
   look (0);
+}
+
+static int
+scan (int64_t *objs)
+{
+  int direction;
+  
+  direction = head_pos < 2 ? 1 : -1;
+
+  for (int i = 0; i < 4; ++i)
+    {
+      measure ();
+      vTaskDelay (100 / portTICK_PERIOD_MS);
+      objs[head_pos + 3] = getdist (0);
+      objs[head_pos] = getdist (1);
+      look (head_pos + direction);
+    }
+
+  printf ("%lld %lld %lld\n", objs[2], objs[3], objs[4]);
+
+  return objs[2] > objs[4] ? RIGHT : (objs[4] > objs[2] ? LEFT : 0);
+}
+
+static void
+r3d2 (void)
+{
+  int64_t objs[7];
+  
+  for (;;)
+    {
+      int direction = scan (objs);
+      
+      if (direction != 0)
+	{
+	  turn (direction, 0);
+	  move (1);
+	  vTaskDelay (500 / portTICK_PERIOD_MS);
+	  stop ();
+	}
+    }
 }
 
 static void
@@ -105,4 +148,6 @@ app_main (void)
 {
   io_init ();
   warmup ();
+
+  r3d2 ();
 }

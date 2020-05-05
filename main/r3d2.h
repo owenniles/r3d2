@@ -26,12 +26,20 @@
 
 #include "driver/gpio.h"
 
-enum direction { FORWARD = 1, BACKWARD = -1 };
+enum direction { FORWARD = 1, BACKWARD = -1, LEFT = 1, RIGHT = -1 };
 enum turn_flags { LOCK_HEAD = 0b1 };
 
-/* Stores the start and end times in microseconds since boot of the last pulse
-   received on each distance sensor. */
+#define straighten(pos) (0 + (pos > 1) * 3)
+
 extern int64_t echo[2][2];
+extern unsigned long long hall[2];
+extern int head_pos;
+
+/* This is a joke. */
+#define PP3V3_V0_PIN GPIO_NUM_25
+#define PP3V3_V0_MASK GPIO_SEL_25
+#define PP3V3_V1_PIN GPIO_NUM_26
+#define PP3V3_V1_MASK GPIO_SEL_26
 
 #define SERVO_PULSE_PIN GPIO_NUM_23
 #define SERVO_DUTY_MIN 960
@@ -46,8 +54,6 @@ extern int64_t echo[2][2];
 #define DIST1_ECHO_PIN GPIO_NUM_39
 #define DIST1_ECHO_MASK GPIO_SEL_39
 
-#define DRIVER_VCC_PIN GPIO_NUM_13
-#define DRIVER_VCC_MASK GPIO_SEL_13
 #define DRIVER_A1_PIN GPIO_NUM_5
 #define DRIVER_A1_MASK GPIO_SEL_5
 #define DRIVER_A2_PIN GPIO_NUM_17
@@ -61,10 +67,10 @@ extern int64_t echo[2][2];
 #define DRIVER_PWMB_PIN GPIO_NUM_21
 #define DRIVER_PWMB_MASK GPIO_SEL_21
 
-#define HALL0_PIN
-#define HALL0_MASK
-#define HALL1_PIN
-#define HALL1_MASK
+#define HALL0_PIN GPIO_NUM_34
+#define HALL0_MASK GPIO_SEL_34
+#define HALL1_PIN GPIO_NUM_35
+#define HALL1_MASK GPIO_SEL_35
 
 /* Object detection interface. */
 void distance_isr (void *);
@@ -72,7 +78,8 @@ int64_t getdist (unsigned);
 void measure (void);
 
 /* Movement interface. */
-void look (unsigned);
+void hall_isr (void *);
+void look (int);
 void move (int);
 void stop (void);
 void turn (int, uint8_t);
