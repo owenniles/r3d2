@@ -1,4 +1,4 @@
-/* defs.h
+/* r3d2.h
 
    Useful, program-wide declarations.
 
@@ -19,10 +19,18 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>. */
 
-#ifndef _DEFS_H_
-#define _DEFS_H_
+#ifndef _R3D2_H_
+#define _R3D2_H_
+
+#include <stdint.h>
 
 #include "driver/gpio.h"
+
+enum turn_flags { T_NOHEAD = 0b1 };
+
+/* Stores the start and end times in microseconds since boot of the last pulse
+   received on each distance sensor. */
+extern int64_t echo[2][2];
 
 #define SERVO_PULSE_PIN GPIO_NUM_23
 #define SERVO_DUTY_MIN 960
@@ -51,5 +59,20 @@
 #define DRIVER_B2_MASK GPIO_SEL_4
 #define DRIVER_PWMB_PIN GPIO_NUM_21
 #define DRIVER_PWMB_MASK GPIO_SEL_21
+
+#define HALL0_PIN
+#define HALL0_MASK
+#define HALL1_PIN
+#define HALL1_MASK
+
+/* Object detection interface. */
+void distance_isr (int64_t *arg);
+int64_t get_distance (unsigned);
+void measure (void);
+
+/* Movement interface. */
+void look (unsigned);
+void move (int);
+void turn (int, uint8_t);
 
 #endif /* not _DEFS_H_ */

@@ -21,7 +21,7 @@
 set(COMPONENT_REQUIRES )
 set(COMPONENT_PRIV_REQUIRES )
 
-set(COMPONENT_SRCS "main.c")
+set(COMPONENT_SRCS "main.c" "measure.c" "move.c")
 set(COMPONENT_ADD_INCLUDEDIRS "")
 
 register_component()
