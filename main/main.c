@@ -109,16 +109,15 @@ scan (int64_t *objs)
       look (head_pos + direction);
     }
 
-  printf ("%lld %lld %lld\n", objs[2], objs[3], objs[4]);
-
-  return objs[2] > objs[4] ? RIGHT : (objs[4] > objs[2] ? LEFT : 0);
+  return objs[0] > objs[6] ? RIGHT : (objs[6] > objs[0] ? LEFT : 0);
 }
 
 static void
 r3d2 (void)
 {
   int64_t objs[7];
-  
+
+  /* This loop can be approximated by a finite state machine. */
   for (;;)
     {
       int direction = scan (objs);
@@ -126,13 +125,29 @@ r3d2 (void)
       if (direction != 0)
 	{
 	  turn (direction, 0);
-	  move (1);
-	  vTaskDelay (500 / portTICK_PERIOD_MS);
+	  move (FORWARD);
+	  
+	  if (head_pos % 3 == 0)
+	    {
+	      int64_t dist;
+
+	      do
+		{
+		  measure ();
+		  vTaskDelay (100 / portTICK_PERIOD_MS);
+		  dist = getdist (head_pos > 0);
+		}
+	      while (dist < 0 || dist > 75);
+	    }
+	  else
+	    vTaskDelay (500 / portTICK_PERIOD_MS);
+
 	  stop ();
 	}
     }
 }
 
+/* This seems to help with measurement accuracy. */
 static void
 warmup (void)
 {

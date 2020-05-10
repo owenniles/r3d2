@@ -45,6 +45,7 @@ distance_isr (void *arg)
   pulse[edge] = esp_timer_get_time ();
 }
 
+/* Read the last distance reported by the specified distance sensor. */
 int64_t
 getdist (unsigned sensor)
 {
